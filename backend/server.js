@@ -17,20 +17,59 @@ const port = process.env.PORT || 3000;
 const mongoUri = process.env.MONGO_URI;
 const dbName = process.env.DB_NAME;
 
-// Connect to MongoDB
-mongoose
-  .connect(mongoUri, { dbName })
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("Failed to connect to MongoDB", err));
+// MongoDB Connection Caching for Serverless Execution
+let isConnected = false;
 
-  // Define the Post schema and model
+async function connectToDatabase() {
+  if (isConnected || mongoose.connection.readyState === 1) {
+    isConnected = true;
+    return;
+  }
+
+  if (!mongoUri) {
+    console.warn("Warning: MONGO_URI is not set in environment variables.");
+    return;
+  }
+
+  try {
+    await mongoose.connect(mongoUri, { dbName });
+    isConnected = true;
+    console.log("Connected to MongoDB");
+  } catch (err) {
+    console.error("Failed to connect to MongoDB:", err);
+    throw err;
+  }
+}
+
+// Connect immediately on startup if possible
+connectToDatabase().catch((err) => console.error("Initial DB connection attempt:", err.message));
+
+// Middleware to ensure DB connection before handling API routes
+app.use(async (req, res, next) => {
+  // Allow health check without DB connection
+  if (req.path === "/" || req.path === "/api/health") {
+    return next();
+  }
+
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    return res.status(500).json({
+      message: "Database connection failed. Please verify MONGO_URI in your environment variables.",
+      error: error.message,
+    });
+  }
+});
+
+// Define the Post schema and model
 const postSchema = new mongoose.Schema({
   title: String,
   content: String,
 });
-const Post = mongoose.model("Post", postSchema);
+const Post = mongoose.models.Post || mongoose.model("Post", postSchema);
 
-//CRUD operations for Blog Posts
+// CRUD operations for Blog Posts
 // Create a new post
 app.post("/api/v1/posts", async (req, res) => {
   try {
@@ -41,7 +80,8 @@ app.post("/api/v1/posts", async (req, res) => {
     res.status(400).send(err);
   }
 });
-//Read all posts
+
+// Read all posts
 app.get("/api/v1/posts", async (req, res) => {
   try {
     const posts = await Post.find();
@@ -53,7 +93,7 @@ app.get("/api/v1/posts", async (req, res) => {
   }
 });
 
-//Read post by id
+// Read post by id
 app.get("/api/v1/posts/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -68,7 +108,7 @@ app.get("/api/v1/posts/:id", async (req, res) => {
   }
 });
 
-//Update post by id
+// Update post by id
 app.put("/api/v1/posts/:id", async (req, res) => {
   try {
     const post = await Post.findByIdAndUpdate(req.params.id, req.body, {
@@ -82,7 +122,8 @@ app.put("/api/v1/posts/:id", async (req, res) => {
     res.status(400).send(err);
   }
 });
-//Delete post by id
+
+// Delete post by id
 app.delete("/api/v1/posts/:id", async (req, res) => {
   try {
     const post = await Post.findByIdAndDelete(req.params.id);
@@ -94,11 +135,25 @@ app.delete("/api/v1/posts/:id", async (req, res) => {
     res.status(400).send(err);
   }
 });
-//Test route
+
+// Test / Health check routes
 app.get("/", (req, res) => {
-  res.send({ message: "Welcome to Express Test" });
+  res.send({ message: "Welcome to Express API" });
 });
-//Start the server
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    dbConnected: mongoose.connection.readyState === 1,
+  });
 });
+
+// Start the server only in local development (when not running in Vercel serverless)
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`Server is running at http://localhost:${port}`);
+  });
+}
+
+// Export default app for Vercel Serverless Function entrypoint
+export default app;

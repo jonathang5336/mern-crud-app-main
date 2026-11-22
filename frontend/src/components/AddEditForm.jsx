@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { API_URL } from "../config";
 
 function AddEditForm() {
   const { id } = useParams();
@@ -8,8 +8,6 @@ function AddEditForm() {
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-
-  const API_URL = "https://mern-crud-app-main-0jck.onrender.com/api/v1/posts";
 
   useEffect(() => {
     if (id) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Header from "./Header";
 import Post from "./Post";
+import { API_URL } from "../config";
 
 function Home() {
   const [posts, setPosts] = useState([]);
@@ -10,9 +11,7 @@ function Home() {
   useEffect(() => {
     async function fetchPosts() {
       try {
-        const response = await fetch(
-          "https://fsd-backend-qjoc.onrender.com/api/v1/posts"
-        );
+        const response = await fetch(API_URL);
 
         if (!response.ok) {
           throw new Error("Unable to load posts. Please try again.");
