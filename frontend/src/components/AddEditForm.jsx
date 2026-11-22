@@ -19,19 +19,36 @@ function AddEditForm() {
     }
   }, [id]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const method = id ? "PUT" : "POST";
-    const url = id
-      ? `https://fsd-backend-qjoc.onrender.com/api/v1/posts/${id}`
-      : "https://fsd-backend-qjoc.onrender.com/api/v1/posts";
-    await fetch(url, {
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const method = id ? "PUT" : "POST";
+  const url = id
+    ? `https://mern-crud-app-main-0jck.onrender.com/api/v1/posts/${id}`
+    : "https://mern-crud-app-main-0jck.onrender.com/api/v1/posts";
+
+  try {
+    const response = await fetch(url, {
       method,
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ title, content }),
     });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status}`);
+    }
+
+    alert(id ? "Post updated successfully!" : "Post created successfully!");
+    navigate("/");
+  } catch (error) {
+    console.error("Error submitting post:", error);
+    alert("Failed to save post. Check backend connection.");
+  }
+};
+
     navigate("/");
   };
 
