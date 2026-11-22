@@ -47,7 +47,7 @@ connectToDatabase().catch((err) => console.error("Initial DB connection attempt:
 // Middleware to ensure DB connection before handling API routes
 app.use(async (req, res, next) => {
   // Allow health check without DB connection
-  if (req.path === "/" || req.path === "/api/health") {
+  if (req.path === "/" || req.path === "/api/health" || req.path === "/health") {
     return next();
   }
 
@@ -69,83 +69,99 @@ const postSchema = new mongoose.Schema({
 });
 const Post = mongoose.models.Post || mongoose.model("Post", postSchema);
 
-// CRUD operations for Blog Posts
+// CRUD operations router for Blog Posts
+const postRouter = express.Router();
+
 // Create a new post
-app.post("/api/v1/posts", async (req, res) => {
+postRouter.post("/", async (req, res) => {
   try {
     const post = new Post(req.body);
     await post.save();
-    res.status(201).send({ message: "Post created successfully", data: post });
+    res.status(201).json({ message: "Post created successfully", data: post });
   } catch (err) {
-    res.status(400).send(err);
+    res.status(400).json({ error: err.message || err });
   }
 });
 
 // Read all posts
-app.get("/api/v1/posts", async (req, res) => {
+postRouter.get("/", async (req, res) => {
   try {
     const posts = await Post.find();
     res
       .status(200)
-      .send({ message: "Posts retrieved successfully", data: posts });
+      .json({ message: "Posts retrieved successfully", data: posts });
   } catch (err) {
-    res.status(400).send(err);
+    res.status(400).json({ error: err.message || err });
   }
 });
 
 // Read post by id
-app.get("/api/v1/posts/:id", async (req, res) => {
+postRouter.get("/:id", async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) {
-      return res.status(404).send({ message: "Post not found" });
+      return res.status(404).json({ message: "Post not found" });
     }
     res
       .status(200)
-      .send({ message: "Post retrieved successfully", data: post });
+      .json({ message: "Post retrieved successfully", data: post });
   } catch (err) {
-    res.status(400).send(err);
+    res.status(400).json({ error: err.message || err });
   }
 });
 
 // Update post by id
-app.put("/api/v1/posts/:id", async (req, res) => {
+postRouter.put("/:id", async (req, res) => {
   try {
     const post = await Post.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
     if (!post) {
-      return res.status(404).send({ message: "Post not found" });
+      return res.status(404).json({ message: "Post not found" });
     }
-    res.status(200).send({ message: "Post updated successfully", data: post });
+    res.status(200).json({ message: "Post updated successfully", data: post });
   } catch (err) {
-    res.status(400).send(err);
+    res.status(400).json({ error: err.message || err });
   }
 });
 
 // Delete post by id
-app.delete("/api/v1/posts/:id", async (req, res) => {
+postRouter.delete("/:id", async (req, res) => {
   try {
     const post = await Post.findByIdAndDelete(req.params.id);
     if (!post) {
-      return res.status(404).send({ message: "Post not found" });
+      return res.status(404).json({ message: "Post not found" });
     }
-    res.status(200).send({ message: "Post deleted successfully", data: post });
+    res.status(200).json({ message: "Post deleted successfully", data: post });
   } catch (err) {
-    res.status(400).send(err);
+    res.status(400).json({ error: err.message || err });
   }
 });
 
-// Test / Health check routes
-app.get("/", (req, res) => {
-  res.send({ message: "Welcome to Express API" });
-});
+// Mount router on multiple prefix variants so it works regardless of Vercel path rewrites
+app.use("/api/v1/posts", postRouter);
+app.use("/v1/posts", postRouter);
+app.use("/api/posts", postRouter);
+app.use("/posts", postRouter);
 
-app.get("/api/health", (req, res) => {
+// Health check routes
+const healthHandler = (req, res) => {
   res.json({
     status: "ok",
     dbConnected: mongoose.connection.readyState === 1,
   });
+};
+
+app.get("/api/health", healthHandler);
+app.get("/health", healthHandler);
+
+app.get("/", (req, res) => {
+  res.json({ message: "Welcome to Express API" });
+});
+
+// JSON 404 Fallback to guarantee no HTML error pages from backend
+app.use((req, res) => {
+  res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
 // Start the server only in local development (when not running in Vercel serverless)

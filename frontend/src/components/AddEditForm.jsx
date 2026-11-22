@@ -16,7 +16,12 @@ function AddEditForm() {
           const response = await fetch(`${API_URL}/${id}`);
 
           if (!response.ok) {
-            throw new Error("Failed to fetch post");
+            throw new Error(`Failed to fetch post (status: ${response.status})`);
+          }
+
+          const contentType = response.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("Received non-JSON response from server.");
           }
 
           const result = await response.json();
@@ -24,7 +29,7 @@ function AddEditForm() {
           setContent(result.data.content);
         } catch (error) {
           console.error("Error fetching post:", error);
-          alert("Could not load post.");
+          alert(error.message || "Could not load post.");
         }
       }
 
@@ -55,7 +60,7 @@ function AddEditForm() {
       navigate("/");
     } catch (error) {
       console.error("Error submitting post:", error);
-      alert("Failed to save post. Check backend connection.");
+      alert(error.message || "Failed to save post.");
     }
   };
 

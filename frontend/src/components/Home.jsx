@@ -14,13 +14,20 @@ function Home() {
         const response = await fetch(API_URL);
 
         if (!response.ok) {
-          throw new Error("Unable to load posts. Please try again.");
+          throw new Error(`Server returned status ${response.status}`);
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error(
+            "Received HTML instead of JSON. This occurs if Vercel Authentication / Deployment Protection is blocking API requests on preview deployments, or if the API path is misrouted."
+          );
         }
 
         const data = await response.json();
 
         if (!Array.isArray(data.data)) {
-          throw new Error("The server returned an unexpected response.");
+          throw new Error("The server returned an unexpected response format.");
         }
 
         setPosts(data.data);
