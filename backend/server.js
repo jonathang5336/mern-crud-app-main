@@ -164,12 +164,10 @@ app.use((req, res) => {
   res.status(404).json({ error: `Route not found: ${req.method} ${req.originalUrl}` });
 });
 
-// Start the server for local development only
-if (!process.env.VERCEL) {
-  app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
-  });
-}
+// Start the server (binds to process.env.PORT on Vercel runtime and local port)
+app.listen(port, () => {
+  console.log(`Server is running at http://localhost:${port}`);
+});
 
 // Export default app for Vercel Serverless Function entrypoint
 export default app;
